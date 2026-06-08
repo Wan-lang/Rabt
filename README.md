@@ -104,7 +104,7 @@ Publication-ready horizontal bar plot of variable relative importance.
 
 ```r
 abt_plot(
-  fit_softcorals_gbm,
+  fit,
   dict_label = NULL,
   out_plot   = ".",
   plot_title = "Relative Influence of Variables",
