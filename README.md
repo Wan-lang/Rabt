@@ -135,6 +135,12 @@ abt_plot(
 
 ---
 
+Citation
+If you use this package in your research, please cite:
+De'ath G. Boosted trees for ecological modeling and prediction. Ecology. 2007 Jan;88(1):243-51.
+
+---
+
 ## License
 
 MIT
