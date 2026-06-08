@@ -7,7 +7,7 @@ R package for Adaptive Boosting Tree (ABT) modeling based on Gradient Boosting M
 ## Installation
 
 ```r
-remotes::install_github("gbm-developers/gbm3")
+remotes::install_github("Wang-lang/Rabt")
 ```
 
 ## Quick Start
