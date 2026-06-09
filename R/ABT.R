@@ -86,8 +86,7 @@ ABT <- function(formula = formula(data), data = list(), distribution = "gaussian
                 shrinkage = 0.05, bag.fraction = 0.5, keep.data = FALSE, 
                 verbose = FALSE, stratify = TRUE, monitor = TRUE, 
                 use = c("best", "all")[1], seed = 0, na.omit.y = TRUE, 
-                cv.folds = 5, train.fraction = 1,
-                class.stratify.cv = NULL, n.cores = NULL) 
+                cv.folds = 5, train.fraction = 1, class.stratify.cv = NULL) 
 {
   # 检查 cv.folds 是否为大于1的正整数
   if (!is.numeric(cv.folds) || cv.folds <= 1 || cv.folds != as.integer(cv.folds)) {
