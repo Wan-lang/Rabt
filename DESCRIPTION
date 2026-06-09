@@ -7,7 +7,7 @@ Description: Provides functions for aggregated boosting tree analysis and microb
 License: MIT + file LICENSE
 Encoding: UTF-8
 Depends: R (>= 4.0.0)
-Imports: gbm (>= 2.2.2), vegan (>= 2.2.0) ggplot2 (>= 3.5.2)
+Imports: gbm (>= 2.2.2), vegan (>= 2.2.0), ggplot2 (>= 3.5.2)
 NeedsCompilation: no
 Packaged: 2025-06-01 14:13:00 UTC; wangxiaoyu
 Author: Your Name [aut, cre]
