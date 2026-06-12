@@ -88,7 +88,7 @@
 #' datam <- mirco_data(env, otu, header = TRUE, datatype = 'otu/asv', method = "bray")
 #' @export
 
-micro_data <- function(env_data, otu_data, datatype = c('otu/asv', 'matrix'), 
+micro_data <- function(env_data, otu_data, datatype = c('otu/asv', 'matrix', 'tre/nwk'), 
                        method = NULL, include_pairs = TRUE) 
 {
   # 匹配 datatype 参数
@@ -146,7 +146,7 @@ micro_data <- function(env_data, otu_data, datatype = c('otu/asv', 'matrix'),
     
     otu_matrix <- as.matrix(otu_dist)
     
-  } else {  # datatype == 'matrix'
+  } elif (datatype == 'matrix') {
     # 假设 otu_data 已经是距离矩阵
     if (nrow(otu_data) != ncol(otu_data)) {
       stop("For datatype = 'matrix', otu_data must be a square distance matrix")
@@ -155,7 +155,9 @@ micro_data <- function(env_data, otu_data, datatype = c('otu/asv', 'matrix'),
       warning("Row and column names of otu_data distance matrix do not match")
     }
     otu_matrix <- as.matrix(otu_data)
-  }
+  } else { 
+    unifrac <- GUniFrac()
+    
   
   # 获取样本名
   sample_names <- rownames(otu_matrix)
