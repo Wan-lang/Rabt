@@ -88,126 +88,153 @@
 #' datam <- mirco_data(env, otu, header = TRUE, datatype = 'otu/asv', method = "bray")
 #' @export
 
-micro_data <- function(env_data, otu_data, datatype = c('otu/asv', 'matrix', 'tre/nwk'), 
-                       method = NULL, include_pairs = TRUE) 
+mirco_data <- function(env_data = NULL, otu_data = NULL, tree = NULL, 
+                       datatype = NULL, method = NULL, include_pairs = TRUE) 
 {
-  # 匹配 datatype 参数
-  datatype <- match.arg(datatype)
+  # 1. 匹配 datatype 参数
+  datatype <- match.arg(datatype, choices = c("otu/asv", "tre/nwk"))
   
-  # 输入验证
+  # 2. 输入验证
+  if (is.null(env_data)) {
+    stop("env_data must be provided")
+  }
   if (!is.matrix(env_data) && !is.data.frame(env_data)) {
     stop("env_data must be a matrix or data.frame")
+  }
+  
+  if (is.null(otu_data)) {
+    stop("otu_data must be provided")
   }
   if (!is.matrix(otu_data) && !is.data.frame(otu_data)) {
     stop("otu_data must be a matrix or data.frame")
   }
   
-  # 确保 env_data 是数据框
+  if (is.null(method) || !method %in% c("bray", "jaccard", "weighted unifrac", "unweighted unifrac")) {
+    stop("method must be one of: 'bray', 'jaccard', 'weighted unifrac', 'unweighted unifrac'")
+  }
+  if (!is.character(method) || length(method) != 1) {
+    stop("method must be a single character string")
+  }
+  
+  # 3. 确保数据框格式
   env_data <- as.data.frame(env_data)
   otu_data <- as.data.frame(otu_data)
   
-  # 检查样本数量是否匹配
+  # 4. 检查样本数量：env 行数 = otu 列数（样本为列）
   if (nrow(env_data) != ncol(otu_data)) {
-    stop(sprintf("Sample count mismatch: env_data has %d rows, otu_data has %d columns. 
-                  For OTU data, samples should be columns.", 
+    stop(sprintf("Sample count mismatch: env_data has %d rows, otu_data has %d columns.", 
                  nrow(env_data), ncol(otu_data)))
   }
   
-  # 检查样本名是否匹配
+  # 5. 检查样本名是否匹配
   if (!is.null(rownames(env_data)) && !is.null(colnames(otu_data))) {
     if (!all(rownames(env_data) == colnames(otu_data))) {
-      warning("Sample names in env_data (rows) and otu_data (columns) do not match. 
-               Ensure samples are aligned.")
+      warning("Sample names in env_data (rows) and otu_data (columns) do not match.")
     }
   }
   
-  # 处理 OTU/ASV 数据
-  if (datatype == 'otu/asv') {
-    if (is.null(method)) {
-      stop("Please provide a distance matrix method for 'otu/asv' datatype.")
-    }
-    if (!is.character(method) || length(method) != 1) {
-      stop("method must be a single character string")
-    }
-    
-    # 转置 OTU 数据：样本为行，OTU 为列
-    otu_t <- t(otu_data)
-    
-    # 计算距离矩阵
-    otu_dist <- tryCatch({
-      vegan::vegdist(otu_t, method = method)
-    }, error = function(e) {
-      stop("Error computing distance matrix: ", e$message, 
-           "\nSupported methods include: manhattan, euclidean, canberra, bray, 
-            kulczynski, jaccard, gower, altGower, morisita, horn, mountford, 
-            raup, binomial, chao, cao, mahalanobis, and more. 
-            See ?vegan::vegdist for full list.")
-    })
-    
-    otu_matrix <- as.matrix(otu_dist)
-    
-  } elif (datatype == 'matrix') {
-    # 假设 otu_data 已经是距离矩阵
-    if (nrow(otu_data) != ncol(otu_data)) {
-      stop("For datatype = 'matrix', otu_data must be a square distance matrix")
-    }
-    if (!all(rownames(otu_data) == colnames(otu_data))) {
-      warning("Row and column names of otu_data distance matrix do not match")
-    }
-    otu_matrix <- as.matrix(otu_data)
-  } else { 
-    unifrac <- GUniFrac()
-    
+  # 6. 转置 OTU 数据：样本为行，OTU 为列
+  otu_t <- t(otu_data)
   
-  # 获取样本名
+  # 7. 计算距离矩阵
+  if (datatype == 'otu/asv') {
+    if (!method %in% c("bray", "jaccard")) {
+      stop("For 'otu/asv' datatype, method must be 'bray' or 'jaccard'")
+    }
+	if (!is.null(tree)) {
+      warning("Phylogenetic tree is not used in the current mode")
+    }
+    otu_dist <- vegan::vegdist(otu_t, method = method)
+    
+  } else if (datatype == 'tre/nwk') {
+    if (!method %in% c("weighted unifrac", "unweighted unifrac")) {
+      stop("For 'tre/nwk' datatype, method must be 'weighted unifrac' or 'unweighted unifrac'")
+    }
+    if (is.null(tree)) {
+      stop("tree file path must be provided for 'tre/nwk' datatype")
+    }
+    if (!is.character(tree) || length(tree) != 1) {
+      stop("tree must be a single character string (file path)")
+    }
+    if (!file.exists(tree)) {
+      stop("tree file does not exist: ", tree)
+    }
+    
+    library(ape)
+    tree_data <- read.tree(tree)
+    
+    # 检查树和OTU表的一致性
+    common_otus <- intersect(colnames(otu_t), tree_data$tip.label)
+    if (length(common_otus) == 0) {
+      stop("No matching OTU names between otu_data and tree")
+    }
+    if (length(common_otus) < ncol(otu_t)) {
+      warning(sprintf("Tree is missing %d OTUs from the table. Using %d common OTUs.", 
+                      ncol(otu_t) - length(common_otus), length(common_otus)))
+      otu_t <- otu_t[, common_otus, drop = FALSE]
+      tree_data <- ape::keep.tip(tree_data, common_otus)
+    }
+    
+    # 计算 UniFrac
+    unifrac <- GUniFrac::GUniFrac(otu_t, tree_data)$unifracs
+    
+    if (method == "weighted unifrac") {
+      otu_dist <- as.dist(unifrac[, , 'd_1'])
+    } else if (method == "unweighted unifrac") {
+      otu_dist <- as.dist(unifrac[, , 'd_UW'])
+    }
+  }
+  
+  # 8. 转为矩阵
+  otu_matrix <- as.matrix(otu_dist)
+  
+  # 9. 获取样本名
   sample_names <- rownames(otu_matrix)
   if (is.null(sample_names)) {
     sample_names <- paste0("Sample", seq_len(nrow(otu_matrix)))
+    rownames(otu_matrix) <- colnames(otu_matrix) <- sample_names
   }
   
-  # 将距离矩阵转为长格式（使用基础 R，避免 reshape2 依赖）
+  # 10. 距离矩阵转为长格式（只保留 i < j，避免重复）
   n <- nrow(otu_matrix)
   pair_idx <- expand.grid(i = seq_len(n), j = seq_len(n))
+  pair_idx <- pair_idx[pair_idx$i < pair_idx$j, , drop = FALSE]  # 只保留上三角
   
   otu_long <- data.frame(
     Sample_i = sample_names[pair_idx$i],
     Sample_j = sample_names[pair_idx$j],
-    value = otu_matrix[cbind(pair_idx$i, pair_idx$j)],
+    otu_value = otu_matrix[cbind(pair_idx$i, pair_idx$j)],
     stringsAsFactors = FALSE
   )
   
-  # 计算环境变量差异矩阵（向量化，避免循环）
-  n_env <- nrow(env_data)
+  # 11. 计算环境变量差异矩阵（只计算 i < j 的对）
+  n_pairs <- nrow(pair_idx)
   p_env <- ncol(env_data)
   env_names <- colnames(env_data)
   
-  # 使用 rep() 和矩阵运算替代 outer() 循环
-  env_i <- env_data[rep(seq_len(n_env), each = n_env), , drop = FALSE]
-  env_j <- env_data[rep(seq_len(n_env), times = n_env), , drop = FALSE]
+  env_i <- env_data[pair_idx$i, , drop = FALSE]
+  env_j <- env_data[pair_idx$j, , drop = FALSE]
   env_diff <- as.data.frame(env_i - env_j)
   colnames(env_diff) <- env_names
   
-  # 组合结果
+  # 12. 组合结果
   if (include_pairs) {
     ABT_data <- cbind(
       Sample_i = otu_long$Sample_i,
       Sample_j = otu_long$Sample_j,
       env_diff,
-      otu_value = otu_long$value
+      otu_value = otu_long$otu_value
     )
   } else {
-    ABT_data <- cbind(env_diff, otu_value = otu_long$value)
+    ABT_data <- cbind(env_diff, otu_value = otu_long$otu_value)
   }
   
-  # 添加属性信息
+  # 13. 添加属性
   attr(ABT_data, "datatype") <- datatype
   attr(ABT_data, "method") <- method
-  attr(ABT_data, "n_samples") <- n_env
-  attr(ABT_data, "n_pairs") <- nrow(ABT_data)
+  attr(ABT_data, "n_samples") <- n
+  attr(ABT_data, "n_pairs") <- n_pairs
   
   return(ABT_data)
 }
-
-
-
 
